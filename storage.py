@@ -18,34 +18,43 @@ def init_db():
         print(f"Ошибка: {e}")
 
 
-def check_user(login: str, password: str, vk_id: int, tg_id: int) -> bool:
+def check_user(
+    login: str = None, password: str = None, vk_id: int = None, tg_id: int = None
+) -> bool:
     """
     True => "Вы успешно авторизованы"; False => "Пользователь не найден"
     """
+    print(login, password, vk_id, tg_id)
     if login != "":
         res = cur.execute(
-            "select login, password from user where login=:login", {"login": login}
-        )
-        if res[1] == password:
+            "select password from user where login=:login", {"login": login}
+        ).fetchall()
+
+        if len(res) == 0:
+            return False
+
+        if res[0] == password:
             return True
     if vk_id >= 0:
-        res = cur.execute("select vk_id from user where vk_id=:vk_id", {"vk_id": vk_id})
-        if len(res.fetchall()) > 0:
+        res = cur.execute(
+            "select vk_id from user where vk_id=:vk_id", {"vk_id": vk_id}
+        ).fetchall()
+        if len(res) > 0:
             return True
     if tg_id >= 0:
         res = cur.execute("select tg_id from user where tg_id=:tg_id", {"tg_id": tg_id})
-        if len(res.fetchall()) > 0:
+        if len(res) > 0:
             return True
     return False
 
 
-def is_registered(login: str, vk_id: int, tg_id: int) -> bool:
+def is_registered(login: str = None, vk_id: int = None, tg_id: int = None) -> bool:
     if login != "" or vk_id != 0 or tg_id != 0:
         res = cur.execute(
             "select login from user where login=:login or vk_id=:vk_id or tg_id=:tg_id",
             {"login": login, "vk_id": vk_id, "tg_id": tg_id},
-        )
-        if len(res.fetchall()) > 0:
+        ).fetchall()
+        if len(res) > 0:
             return True
 
     return False
@@ -55,12 +64,12 @@ def create_user(
     role: int,
     phone: str,
     full_name: str,
-    passport: str,
-    address: str,
-    login: str,
-    password: str,
-    vk_id: int,
-    tg_id: int,
+    passport: str = None,
+    address: str = None,
+    login: str = None,
+    password: str = None,
+    vk_id: int = None,
+    tg_id: int = None,
 ) -> bool:
     if not (is_registered(login, vk_id, tg_id)):
         cur.execute(
@@ -77,6 +86,7 @@ def create_user(
                 "tg_id": tg_id,
             },
         )
+        conn.commit()
         return True
     return False
 
@@ -85,15 +95,15 @@ def get_user(
     login: str,
     vk_id: int,
     tg_id: int,
-) -> bool:
+) -> list[any]:
     if not (is_registered(login, vk_id, tg_id)):
-        cur.execute(
+        res = cur.execute(
             "select role, phone, full_name, passport, address from user where login=:login or vk_id=:vk_id or tg_id=:tg_id",
             {
                 "login": login,
                 "vk_id": vk_id,
                 "tg_id": tg_id,
             },
-        )
-        return True
-    return False
+        ).fetchall()
+        return res
+    return None

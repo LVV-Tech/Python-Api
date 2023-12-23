@@ -1,4 +1,5 @@
 import storage
+import vk
 
 
 if __name__ == "__main__":
@@ -18,3 +19,5 @@ if __name__ == "__main__":
 
     if storage.check_user:
         print("Вы авторизованы")
+
+    vk.start_vk_bot()
