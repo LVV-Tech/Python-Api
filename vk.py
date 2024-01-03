@@ -4,6 +4,7 @@ from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 import os
 from dotenv import load_dotenv, find_dotenv
 import storage
+import re
 
 
 load_dotenv(find_dotenv())
@@ -28,18 +29,31 @@ def sender(id: int, text: str, keyboard: VkKeyboard = None):
         post["keyboard"] = keyboard.get_keyboard()
     vk_session.method("messages.send", post)
 
+def get_last_msg(peer_id: int, msg_id: int):
+    post = {"peer_id": peer_id, "conversation_message_ids": [msg_id+2]}
+    return vk_session.method("messages.getByConversationMessageId", post)
+
+def get_info(id: int):
+    post = {"user_ids": [id]}
+    return vk_session.method("users.get", post)
+
 def start_vk_bot():
     print("Server in work")
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW:
-            print(event.text)
+            
             if event.to_me:
+                print(f'{event.text} from {event.user_id}')
                 msg = event.text.lower()
                 id = event.user_id
+                
                 if msg == "начать" or msg == "меню":
                     keyboard = VkKeyboard()
                     keyboard.add_button(
                         "Связаться с менеджером", VkKeyboardColor.POSITIVE
+                    )
+                    keyboard.add_button(
+                        "Регистрация", VkKeyboardColor.POSITIVE
                     )
                     keyboard.add_line()
                     keyboard.add_button("Услуги", VkKeyboardColor.NEGATIVE)
@@ -48,6 +62,46 @@ def start_vk_bot():
                     keyboard.add_openlink_button("О нас", "https://vk.com/@lvvlabel-kto-my")
                     keyboard.add_openlink_button("FAQ", "https://vk.com/@lvvlabel-chastye-voprosy")
                     sender(id, "Вот что мы можем вам предложить", keyboard)
+                if msg == "регистрация":
+                    name = " ".join([get_info(id)[0]["first_name"],get_info(id)[0]["last_name"]])
+                    print(name)
+                    keyboard = VkKeyboard()
+                    keyboard.add_button("меню",VkKeyboardColor.SECONDARY)
+                    sender(id, "Введите свои паспортные данные в формате: серия номер",keyboard)
+                    creds = get_last_msg(event.peer_id, event.message_id)
+                    while creds['count'] == 0:
+                        creds = get_last_msg(event.peer_id, event.message_id)
+                    print(creds)
+                    match = re.search(r'[0-9][0-9][0-9][0-9] [0-9][0-9][0-9][0-9][0-9][0-9]', creds['items'][0]['text'])
+                    if not match:
+                        sender(id, "Хуйня бро давай сначала",keyboard)
+                        continue
+                    else:
+                        #sender(id, "окок",keyboard)
+                        passp = creds['items'][0]['text']
+                    
+                    sender(id, "Введите свой номер телефона в формате: +79999999999",keyboard)
+                    creds = get_last_msg(event.peer_id, event.message_id+2)
+                    while creds['count'] == 0:
+                        creds = get_last_msg(event.peer_id, event.message_id+2)
+                    print(creds)
+                    match = re.search(r'\+7[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]', creds['items'][0]['text'])
+                    if not match:
+                        sender(id, "Хуйня бро давай сначала",keyboard)
+                        continue
+                    else:
+                        sender(id, "окок",keyboard)
+                        phone = creds['items'][0]['text']
+                    
+                    storage.create_user(
+                        role=0,
+                        phone=phone,
+                        full_name=name,
+                        passport=passp,
+                        vk_id=id
+                    )
+                    
+                        
                 if msg == "связаться с менеджером":
                     keyboard = VkKeyboard()
                     keyboard.add_button("Творческий/Примеры работ, оценка, услуги", VkKeyboardColor.SECONDARY)

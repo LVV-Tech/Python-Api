@@ -24,17 +24,6 @@ def check_user(
     """
     True => "Вы успешно авторизованы"; False => "Пользователь не найден"
     """
-    print(login, password, vk_id, tg_id)
-    if login != "":
-        res = cur.execute(
-            "select password from user where login=:login", {"login": login}
-        ).fetchall()
-
-        if len(res) == 0:
-            return False
-
-        if res[0] == password:
-            return True
     if vk_id >= 0:
         res = cur.execute(
             "select vk_id from user where vk_id=:vk_id", {"vk_id": vk_id}
@@ -103,6 +92,19 @@ def get_user(
                 "login": login,
                 "vk_id": vk_id,
                 "tg_id": tg_id,
+            },
+        ).fetchall()
+        return res
+    return None
+
+def get_user_vk_id(
+    vk_id: int,
+) -> list[any]:
+    if not (is_registered(vk_id)):
+        res = cur.execute(
+            "select role, phone, full_name, passport, address from user where vk_id=:vk_id",
+            {
+                "vk_id": vk_id,
             },
         ).fetchall()
         return res
