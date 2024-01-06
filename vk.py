@@ -7,6 +7,10 @@ import storage
 import re
 import json
 import requests
+from docx import Document
+from datetime import datetime
+import locale
+locale.setlocale(locale.LC_ALL, "")
 
 
 load_dotenv(find_dotenv())
@@ -72,9 +76,9 @@ def start_vk_bot():
                     while creds['count'] == 0:
                         creds = get_last_msg(event.peer_id, event.message_id)
                     print(creds)
-                    match = re.search(r'[0-9][0-9][0-9][0-9] [0-9][0-9][0-9][0-9][0-9][0-9]', creds['items'][0]['text'])
+                    match = re.search(r'^[0-9][0-9][0-9][0-9] [0-9][0-9][0-9][0-9][0-9][0-9]$', creds['items'][0]['text'])
                     if not match:
-                        sender(id, "Хуйня бро давай сначала",keyboard)
+                        sender(id, "Ошибка, проверьте правильность введенных данных",keyboard)
                         continue
                     else:
                         #sender(id, "окок",keyboard)
@@ -85,13 +89,26 @@ def start_vk_bot():
                     while creds['count'] == 0:
                         creds = get_last_msg(event.peer_id, event.message_id+2)
                     print(creds)
-                    match = re.search(r'\+7[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]', creds['items'][0]['text'])
+                    match = re.search(r'^\+7[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$', creds['items'][0]['text'])
                     if not match:
-                        sender(id, "Хуйня бро давай сначала",keyboard)
+                        sender(id, "Ошибка, проверьте правильность введенных данных",keyboard)
                         continue
                     else:
-                        sender(id, "окок",keyboard)
+                        ##sender(id, "окок",keyboard)
                         phone = creds['items'][0]['text']
+                    
+                    sender(id, "Введите своё имя фамилию отчество:",keyboard)
+                    creds = get_last_msg(event.peer_id, event.message_id+4)
+                    while creds['count'] == 0:
+                        creds = get_last_msg(event.peer_id, event.message_id+4)
+                    match = re.search(r'^[^\W\d_]+\s[^\W\d_]+?(\s[^\W\d_]+)$', creds['items'][0]['text'])
+                    if not match:
+                        sender(id, "Ошибка, проверьте правильность введенных данных",keyboard)
+                        print(match, creds)
+                        continue
+                    else:
+                        sender(id, "Вы зарегистрированы",keyboard)
+                        name = creds['items'][0]['text']
                     
                     storage.create_user(
                         role=0,
@@ -169,7 +186,87 @@ def start_vk_bot():
                         keyboard.add_button(
                             "Регистрация", VkKeyboardColor.POSITIVE
                         )
-                        sender(id, "Не зареган", keyboard)
+                        sender(id, "Вам необходимо зарегестрироваться", keyboard)
                         continue
                     
                     sender(id, "Ваш Запрос в работе, в ближайшее время с вами свяжется менеджер", keyboard)
+                    # Открываем документ
+                    doc = Document("sogl.docx")
+                    user = storage.get_user_vk_id(id)
+                    # Получаем все параграфы документа
+                    paras = doc.paragraphs
+                    
+                    today = datetime.now()
+                    
+
+                    # Проходим по всем параграфам и заменяем необходимые поля
+                    for para in paras:
+                        if "{{name}}" in para.text:
+                            para.text = para.text.replace("{{name}}", user[0][2].title())
+                    for para in paras:
+                        if "{{passport}}" in para.text:
+                            para.text = para.text.replace("{{passport}}", user[0][3])
+                    for para in paras:
+                        if "{{day}}" in para.text:
+                            para.text = para.text.replace("{{day}}", datetime.strftime(today, '%d'))
+                    for para in paras:
+                        if "{{month}}" in para.text:
+                            para.text = para.text.replace("{{month}}", datetime.strftime(today, ' %B'))
+                    for para in paras:
+                        if "{{year}}" in para.text:
+                            para.text = para.text.replace("{{year}}", datetime.strftime(today, '%Y'))
+
+                    # Сохраняем изменения
+                    doc.save("output.docx")
+                    result = json.loads(requests.post(vk.docs.getMessagesUploadServer(type='doc', peer_id=event.peer_id)['upload_url'],
+                                                  files={'file': open('output.docx', 'rb')}).text)
+                    jsonAnswer = vk.docs.save(file=result['file'], title=f'Согласие_обработку_{user[0][2].title()}', tags=[])
+
+                    vk.messages.send(
+                        peer_id=event.peer_id,
+                        random_id=0,
+                        attachment=f"doc{jsonAnswer['doc']['owner_id']}_{jsonAnswer['doc']['id']}"
+                    )
+                    
+                    doc = Document("dog.docx")
+                    user = storage.get_user_vk_id(id)
+                    # Получаем все параграфы документа
+                    paras = doc.paragraphs
+                    
+                    today = datetime.now()
+                    
+
+                    # Проходим по всем параграфам и заменяем необходимые поля
+                    for para in paras:
+                        if "{{name}}" in para.text:
+                            para.text = para.text.replace("{{name}}", user[0][2].title())
+                    for para in paras:
+                        if "{{passport}}" in para.text:
+                            para.text = para.text.replace("{{passport}}", user[0][3])
+                    for para in paras:
+                        if "{{day}}" in para.text:
+                            para.text = para.text.replace("{{day}}", datetime.strftime(today, '%d'))
+                    for para in paras:
+                        if "{{month}}" in para.text:
+                            para.text = para.text.replace("{{month}}", datetime.strftime(today, ' %B'))
+                    for para in paras:
+                        if "{{year}}" in para.text:
+                            para.text = para.text.replace("{{year}}", datetime.strftime(today, '%Y'))
+                    for para in paras:
+                        if "{{services}}" in para.text:
+                            para.text = para.text.replace("{{services}}", services[prevService])
+                    for para in paras:
+                        if "{{price}}" in para.text:
+                            para.text = para.text.replace("{{price}}", str(servicesPrices[prevService]))
+
+                    # Сохраняем изменения
+                    doc.save("output.docx")
+                    result = json.loads(requests.post(vk.docs.getMessagesUploadServer(type='doc', peer_id=event.peer_id)['upload_url'],
+                                                  files={'file': open('output.docx', 'rb')}).text)
+                    jsonAnswer = vk.docs.save(file=result['file'], title=f'Договор_{user[0][2].title()}', tags=[])
+
+                    vk.messages.send(
+                        peer_id=event.peer_id,
+                        random_id=0,
+                        attachment=f"doc{jsonAnswer['doc']['owner_id']}_{jsonAnswer['doc']['id']}"
+                    )
