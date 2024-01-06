@@ -67,8 +67,6 @@ def start_vk_bot():
                     keyboard.add_openlink_button("FAQ", "https://vk.com/@lvvlabel-chastye-voprosy")
                     sender(id, "Вот что мы можем вам предложить", keyboard)
                 if msg == "регистрация":
-                    name = " ".join([get_info(id)[0]["first_name"],get_info(id)[0]["last_name"]])
-                    print(name)
                     keyboard = VkKeyboard()
                     keyboard.add_button("меню",VkKeyboardColor.SECONDARY)
                     sender(id, "Введите свои паспортные данные в формате: серия номер",keyboard)
@@ -189,7 +187,7 @@ def start_vk_bot():
                         sender(id, "Вам необходимо зарегестрироваться", keyboard)
                         continue
                     
-                    sender(id, "Ваш Запрос в работе, в ближайшее время с вами свяжется менеджер", keyboard)
+                    sender(id, "Заполните документы и отправьте их модератору: @ghostikgh", keyboard)
                     # Открываем документ
                     doc = Document("sogl.docx")
                     user = storage.get_user_vk_id(id)
