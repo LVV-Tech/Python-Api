@@ -5,6 +5,8 @@ import os
 from dotenv import load_dotenv, find_dotenv
 import storage
 import re
+import json
+import requests
 
 
 load_dotenv(find_dotenv())
@@ -12,6 +14,7 @@ load_dotenv(find_dotenv())
 token: str = os.getenv(key="VK_TOKEN")
 
 vk_session: vk_api.VkApi = vk_api.VkApi(token=token)
+vk = vk_session.get_api()
 session_api = vk_session.get_api()
 longpoll = VkLongPoll(vk_session)
 
@@ -51,9 +54,6 @@ def start_vk_bot():
                     keyboard = VkKeyboard()
                     keyboard.add_button(
                         "Связаться с менеджером", VkKeyboardColor.POSITIVE
-                    )
-                    keyboard.add_button(
-                        "Регистрация", VkKeyboardColor.POSITIVE
                     )
                     keyboard.add_line()
                     keyboard.add_button("Услуги", VkKeyboardColor.NEGATIVE)
@@ -160,11 +160,16 @@ def start_vk_bot():
                     keyboard.add_button("Меню", VkKeyboardColor.NEGATIVE)
                     sender(id, "Ваш Запрос в работе, в ближайшее время с вами свяжется менеджер", keyboard)
                 if msg == "✅подтвердить заказ✅":
+                    keyboard = VkKeyboard()
+                    keyboard.add_button("Меню", VkKeyboardColor.NEGATIVE)
                     print("ВЫ выбрали услугу", services[prevService])
                     if storage.check_user(vk_id=id):
                         pass
                     else:
-                        sender(id, "Не зареган")
-                    keyboard = VkKeyboard()
-                    keyboard.add_button("Меню", VkKeyboardColor.NEGATIVE)
+                        keyboard.add_button(
+                            "Регистрация", VkKeyboardColor.POSITIVE
+                        )
+                        sender(id, "Не зареган", keyboard)
+                        continue
+                    
                     sender(id, "Ваш Запрос в работе, в ближайшее время с вами свяжется менеджер", keyboard)

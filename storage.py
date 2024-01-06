@@ -24,13 +24,13 @@ def check_user(
     """
     True => "Вы успешно авторизованы"; False => "Пользователь не найден"
     """
-    if vk_id >= 0:
+    if vk_id and vk_id >= 0:
         res = cur.execute(
             "select vk_id from user where vk_id=:vk_id", {"vk_id": vk_id}
         ).fetchall()
         if len(res) > 0:
             return True
-    if tg_id >= 0:
+    if tg_id and tg_id >= 0:
         res = cur.execute("select tg_id from user where tg_id=:tg_id", {"tg_id": tg_id})
         if len(res) > 0:
             return True
