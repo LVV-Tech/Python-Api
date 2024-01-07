@@ -31,7 +31,7 @@ def check_user(
         if len(res) > 0:
             return True
     if tg_id and tg_id >= 0:
-        res = cur.execute("select tg_id from user where tg_id=:tg_id", {"tg_id": tg_id})
+        res = cur.execute("select tg_id from user where tg_id=:tg_id", {"tg_id": tg_id}).fetchall()
         if len(res) > 0:
             return True
     return False
@@ -105,6 +105,19 @@ def get_user_vk_id(
             "select role, phone, full_name, passport, address from user where vk_id=:vk_id",
             {
                 "vk_id": vk_id,
+            },
+        ).fetchall()
+        return res
+    return None
+
+def get_user_tg_id(
+    tg_id: int,
+) -> list[any]:
+    if not (is_registered(tg_id)):
+        res = cur.execute(
+            "select role, phone, full_name, passport, address from user where tg_id=:tg_id",
+            {
+                "tg_id": tg_id,
             },
         ).fetchall()
         return res
