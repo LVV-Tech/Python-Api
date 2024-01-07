@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect("vk.db")
+conn = sqlite3.connect("vk.db", check_same_thread=False)
 
 sql_file = "init.sql"
 

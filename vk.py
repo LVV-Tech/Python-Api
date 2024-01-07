@@ -10,10 +10,13 @@ import requests
 from docx import Document
 from datetime import datetime
 import locale
+from threading import Thread
 locale.setlocale(locale.LC_ALL, "")
 
 
 load_dotenv(find_dotenv())
+
+
 
 token: str = os.getenv(key="VK_TOKEN")
 
@@ -44,7 +47,166 @@ def get_info(id: int):
     post = {"user_ids": [id]}
     return vk_session.method("users.get", post)
 
+def start_event(event):
+    keyboard = VkKeyboard()
+    keyboard.add_button(
+        "Связаться с менеджером", VkKeyboardColor.POSITIVE
+    )
+    keyboard.add_line()
+    keyboard.add_button("Услуги", VkKeyboardColor.NEGATIVE)
+    keyboard.add_openlink_button("Отзывы", "https://vk.com/topic-221967488_49474380")
+    keyboard.add_line()
+    keyboard.add_openlink_button("О нас", "https://vk.com/@lvvlabel-kto-my")
+    keyboard.add_openlink_button("FAQ", "https://vk.com/@lvvlabel-chastye-voprosy")
+    sender(event.user_id, "Вот что мы можем вам предложить", keyboard)
+
+def register(event):
+    keyboard = VkKeyboard()
+    keyboard.add_button("меню",VkKeyboardColor.SECONDARY)
+    sender(event.user_id, "Введите свои паспортные данные в формате: серия номер",keyboard)
+    creds = get_last_msg(event.peer_id, event.message_id)
+    while creds['count'] == 0:
+        creds = get_last_msg(event.peer_id, event.message_id)
+    print(creds)
+    match = re.search(r'^[0-9][0-9][0-9][0-9] [0-9][0-9][0-9][0-9][0-9][0-9]$', creds['items'][0]['text'])
+    if not match:
+        sender(event.user_id, "Ошибка, проверьте правильность введенных данных",keyboard)
+        return
+    else:
+        #sender(id, "окок",keyboard)
+        passp = creds['items'][0]['text']
+    
+    sender(event.user_id, "Введите свой номер телефона в формате: +79999999999",keyboard)
+    creds = get_last_msg(event.peer_id, event.message_id+2)
+    while creds['count'] == 0:
+        creds = get_last_msg(event.peer_id, event.message_id+2)
+    print(creds)
+    match = re.search(r'^\+7[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$', creds['items'][0]['text'])
+    if not match:
+        sender(event.user_id, "Ошибка, проверьте правильность введенных данных",keyboard)
+        return
+    else:
+        ##sender(id, "окок",keyboard)
+        phone = creds['items'][0]['text']
+    
+    sender(event.user_id, "Введите свою фамилию имя отчество:",keyboard)
+    creds = get_last_msg(event.peer_id, event.message_id+4)
+    while creds['count'] == 0:
+        creds = get_last_msg(event.peer_id, event.message_id+4)
+    match = re.search(r'^[^\W\d_]+\s[^\W\d_]+?(\s[^\W\d_]+)$', creds['items'][0]['text'])
+    if not match:
+        sender(event.user_id, "Ошибка, проверьте правильность введенных данных",keyboard)
+        print(match, creds)
+        return
+    else:
+        name = creds['items'][0]['text']
+        storage.create_user(
+            role=0,
+            phone=phone,
+            full_name=name,
+            passport=passp,
+            vk_id=event.user_id
+        )
+        sender(event.user_id, "Вы зарегистрированы",keyboard)
+
+def accept_order(event, prevService):
+    id = event.user_id
+    keyboard = VkKeyboard()
+    keyboard.add_button("Меню", VkKeyboardColor.NEGATIVE)
+    print("ВЫ выбрали услугу", services[prevService])
+    if storage.check_user(vk_id=id):
+        pass
+    else:
+        keyboard.add_button(
+            "Регистрация", VkKeyboardColor.POSITIVE
+        )
+        sender(id, "Вам необходимо зарегестрироваться", keyboard)
+        return
+    
+    sender(id, "Заполните документы и отправьте их модератору: @ghostikgh", keyboard)
+    # Открываем документ
+    doc = Document("sogl.docx")
+    user = storage.get_user_vk_id(id)
+    # Получаем все параграфы документа
+    paras = doc.paragraphs
+    
+    today = datetime.now()
+    
+    # Проходим по всем параграфам и заменяем необходимые поля
+    for para in paras:
+        if "{{name}}" in para.text:
+            para.text = para.text.replace("{{name}}", user[0][2].title())
+    for para in paras:
+        if "{{passport}}" in para.text:
+            para.text = para.text.replace("{{passport}}", user[0][3])
+    for para in paras:
+        if "{{day}}" in para.text:
+            para.text = para.text.replace("{{day}}", datetime.strftime(today, '%d'))
+    for para in paras:
+        if "{{month}}" in para.text:
+            para.text = para.text.replace("{{month}}", datetime.strftime(today, ' %B'))
+    for para in paras:
+        if "{{year}}" in para.text:
+            para.text = para.text.replace("{{year}}", datetime.strftime(today, '%Y'))
+
+    # Сохраняем изменения
+    doc.save("output.docx")
+    result = json.loads(requests.post(vk.docs.getMessagesUploadServer(type='doc', peer_id=event.peer_id)['upload_url'],
+                                    files={'file': open('output.docx', 'rb')}).text)
+    jsonAnswer = vk.docs.save(file=result['file'], title=f'Согласие_обработку_{user[0][2].title()}', tags=[])
+
+    vk.messages.send(
+        peer_id=event.peer_id,
+        random_id=0,
+        attachment=f"doc{jsonAnswer['doc']['owner_id']}_{jsonAnswer['doc']['id']}"
+    )
+    
+    doc = Document("dog.docx")
+    user = storage.get_user_vk_id(event.user_id)
+    # Получаем все параграфы документа
+    paras = doc.paragraphs
+    
+    today = datetime.now()
+
+    # Проходим по всем параграфам и заменяем необходимые поля
+    for para in paras:
+        if "{{name}}" in para.text:
+            para.text = para.text.replace("{{name}}", user[0][2].title())
+    for para in paras:
+        if "{{passport}}" in para.text:
+            para.text = para.text.replace("{{passport}}", user[0][3])
+    for para in paras:
+        if "{{day}}" in para.text:
+            para.text = para.text.replace("{{day}}", datetime.strftime(today, '%d'))
+    for para in paras:
+        if "{{month}}" in para.text:
+            para.text = para.text.replace("{{month}}", datetime.strftime(today, ' %B'))
+    for para in paras:
+        if "{{year}}" in para.text:
+            para.text = para.text.replace("{{year}}", datetime.strftime(today, '%Y'))
+    for para in paras:
+        if "{{services}}" in para.text:
+            para.text = para.text.replace("{{services}}", services[prevService])
+    for para in paras:
+        if "{{price}}" in para.text:
+            para.text = para.text.replace("{{price}}", str(servicesPrices[prevService]))
+
+    # Сохраняем изменения
+    doc.save("output.docx")
+    result = json.loads(requests.post(vk.docs.getMessagesUploadServer(type='doc', peer_id=event.peer_id)['upload_url'],
+                                    files={'file': open('output.docx', 'rb')}).text)
+    jsonAnswer = vk.docs.save(file=result['file'], title=f'Договор_{user[0][2].title()}', tags=[])
+
+    vk.messages.send(
+        peer_id=event.peer_id,
+        random_id=0,
+        attachment=f"doc{jsonAnswer['doc']['owner_id']}_{jsonAnswer['doc']['id']}"
+    )
+    
+
+
 def start_vk_bot():
+    prevService = -100
     print("Server in work")
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW:
@@ -55,67 +217,12 @@ def start_vk_bot():
                 id = event.user_id
                 
                 if msg == "начать" or msg == "меню":
-                    keyboard = VkKeyboard()
-                    keyboard.add_button(
-                        "Связаться с менеджером", VkKeyboardColor.POSITIVE
-                    )
-                    keyboard.add_line()
-                    keyboard.add_button("Услуги", VkKeyboardColor.NEGATIVE)
-                    keyboard.add_openlink_button("Отзывы", "https://vk.com/topic-221967488_49474380")
-                    keyboard.add_line()
-                    keyboard.add_openlink_button("О нас", "https://vk.com/@lvvlabel-kto-my")
-                    keyboard.add_openlink_button("FAQ", "https://vk.com/@lvvlabel-chastye-voprosy")
-                    sender(id, "Вот что мы можем вам предложить", keyboard)
+                    thread = Thread(target=start_event, args=[event])
+                    thread.start()
+                    
                 if msg == "регистрация":
-                    keyboard = VkKeyboard()
-                    keyboard.add_button("меню",VkKeyboardColor.SECONDARY)
-                    sender(id, "Введите свои паспортные данные в формате: серия номер",keyboard)
-                    creds = get_last_msg(event.peer_id, event.message_id)
-                    while creds['count'] == 0:
-                        creds = get_last_msg(event.peer_id, event.message_id)
-                    print(creds)
-                    match = re.search(r'^[0-9][0-9][0-9][0-9] [0-9][0-9][0-9][0-9][0-9][0-9]$', creds['items'][0]['text'])
-                    if not match:
-                        sender(id, "Ошибка, проверьте правильность введенных данных",keyboard)
-                        continue
-                    else:
-                        #sender(id, "окок",keyboard)
-                        passp = creds['items'][0]['text']
-                    
-                    sender(id, "Введите свой номер телефона в формате: +79999999999",keyboard)
-                    creds = get_last_msg(event.peer_id, event.message_id+2)
-                    while creds['count'] == 0:
-                        creds = get_last_msg(event.peer_id, event.message_id+2)
-                    print(creds)
-                    match = re.search(r'^\+7[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$', creds['items'][0]['text'])
-                    if not match:
-                        sender(id, "Ошибка, проверьте правильность введенных данных",keyboard)
-                        continue
-                    else:
-                        ##sender(id, "окок",keyboard)
-                        phone = creds['items'][0]['text']
-                    
-                    sender(id, "Введите своё имя фамилию отчество:",keyboard)
-                    creds = get_last_msg(event.peer_id, event.message_id+4)
-                    while creds['count'] == 0:
-                        creds = get_last_msg(event.peer_id, event.message_id+4)
-                    match = re.search(r'^[^\W\d_]+\s[^\W\d_]+?(\s[^\W\d_]+)$', creds['items'][0]['text'])
-                    if not match:
-                        sender(id, "Ошибка, проверьте правильность введенных данных",keyboard)
-                        print(match, creds)
-                        continue
-                    else:
-                        sender(id, "Вы зарегистрированы",keyboard)
-                        name = creds['items'][0]['text']
-                    
-                    storage.create_user(
-                        role=0,
-                        phone=phone,
-                        full_name=name,
-                        passport=passp,
-                        vk_id=id
-                    )
-                    
+                    thread = Thread(target=register, args=[event])
+                    thread.start()
                         
                 if msg == "связаться с менеджером":
                     keyboard = VkKeyboard()
@@ -175,96 +282,8 @@ def start_vk_bot():
                     keyboard.add_button("Меню", VkKeyboardColor.NEGATIVE)
                     sender(id, "Ваш Запрос в работе, в ближайшее время с вами свяжется менеджер", keyboard)
                 if msg == "✅подтвердить заказ✅":
-                    keyboard = VkKeyboard()
-                    keyboard.add_button("Меню", VkKeyboardColor.NEGATIVE)
-                    print("ВЫ выбрали услугу", services[prevService])
-                    if storage.check_user(vk_id=id):
-                        pass
+                    if prevService >= 0:
+                        thread = Thread(target=accept_order, args=(event, prevService))
+                        thread.start()
                     else:
-                        keyboard.add_button(
-                            "Регистрация", VkKeyboardColor.POSITIVE
-                        )
-                        sender(id, "Вам необходимо зарегестрироваться", keyboard)
-                        continue
-                    
-                    sender(id, "Заполните документы и отправьте их модератору: @ghostikgh", keyboard)
-                    # Открываем документ
-                    doc = Document("sogl.docx")
-                    user = storage.get_user_vk_id(id)
-                    # Получаем все параграфы документа
-                    paras = doc.paragraphs
-                    
-                    today = datetime.now()
-                    
-
-                    # Проходим по всем параграфам и заменяем необходимые поля
-                    for para in paras:
-                        if "{{name}}" in para.text:
-                            para.text = para.text.replace("{{name}}", user[0][2].title())
-                    for para in paras:
-                        if "{{passport}}" in para.text:
-                            para.text = para.text.replace("{{passport}}", user[0][3])
-                    for para in paras:
-                        if "{{day}}" in para.text:
-                            para.text = para.text.replace("{{day}}", datetime.strftime(today, '%d'))
-                    for para in paras:
-                        if "{{month}}" in para.text:
-                            para.text = para.text.replace("{{month}}", datetime.strftime(today, ' %B'))
-                    for para in paras:
-                        if "{{year}}" in para.text:
-                            para.text = para.text.replace("{{year}}", datetime.strftime(today, '%Y'))
-
-                    # Сохраняем изменения
-                    doc.save("output.docx")
-                    result = json.loads(requests.post(vk.docs.getMessagesUploadServer(type='doc', peer_id=event.peer_id)['upload_url'],
-                                                  files={'file': open('output.docx', 'rb')}).text)
-                    jsonAnswer = vk.docs.save(file=result['file'], title=f'Согласие_обработку_{user[0][2].title()}', tags=[])
-
-                    vk.messages.send(
-                        peer_id=event.peer_id,
-                        random_id=0,
-                        attachment=f"doc{jsonAnswer['doc']['owner_id']}_{jsonAnswer['doc']['id']}"
-                    )
-                    
-                    doc = Document("dog.docx")
-                    user = storage.get_user_vk_id(id)
-                    # Получаем все параграфы документа
-                    paras = doc.paragraphs
-                    
-                    today = datetime.now()
-                    
-
-                    # Проходим по всем параграфам и заменяем необходимые поля
-                    for para in paras:
-                        if "{{name}}" in para.text:
-                            para.text = para.text.replace("{{name}}", user[0][2].title())
-                    for para in paras:
-                        if "{{passport}}" in para.text:
-                            para.text = para.text.replace("{{passport}}", user[0][3])
-                    for para in paras:
-                        if "{{day}}" in para.text:
-                            para.text = para.text.replace("{{day}}", datetime.strftime(today, '%d'))
-                    for para in paras:
-                        if "{{month}}" in para.text:
-                            para.text = para.text.replace("{{month}}", datetime.strftime(today, ' %B'))
-                    for para in paras:
-                        if "{{year}}" in para.text:
-                            para.text = para.text.replace("{{year}}", datetime.strftime(today, '%Y'))
-                    for para in paras:
-                        if "{{services}}" in para.text:
-                            para.text = para.text.replace("{{services}}", services[prevService])
-                    for para in paras:
-                        if "{{price}}" in para.text:
-                            para.text = para.text.replace("{{price}}", str(servicesPrices[prevService]))
-
-                    # Сохраняем изменения
-                    doc.save("output.docx")
-                    result = json.loads(requests.post(vk.docs.getMessagesUploadServer(type='doc', peer_id=event.peer_id)['upload_url'],
-                                                  files={'file': open('output.docx', 'rb')}).text)
-                    jsonAnswer = vk.docs.save(file=result['file'], title=f'Договор_{user[0][2].title()}', tags=[])
-
-                    vk.messages.send(
-                        peer_id=event.peer_id,
-                        random_id=0,
-                        attachment=f"doc{jsonAnswer['doc']['owner_id']}_{jsonAnswer['doc']['id']}"
-                    )
+                        sender(id, "Ошибка пройдите процедуру заново", keyboard)
