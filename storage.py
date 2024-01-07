@@ -102,7 +102,7 @@ def get_user_vk_id(
 ) -> list[any]:
     if not (is_registered(vk_id)):
         res = cur.execute(
-            "select role, phone, full_name, passport, address from user where vk_id=:vk_id",
+            "select login, phone, full_name, passport, address from user where vk_id=:vk_id",
             {
                 "vk_id": vk_id,
             },
@@ -115,7 +115,7 @@ def get_user_tg_id(
 ) -> list[any]:
     if not (is_registered(tg_id)):
         res = cur.execute(
-            "select role, phone, full_name, passport, address from user where tg_id=:tg_id",
+            "select login, phone, full_name, passport, address from user where tg_id=:tg_id",
             {
                 "tg_id": tg_id,
             },

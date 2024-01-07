@@ -150,6 +150,12 @@ def on_click(msg):
             for para in paras:
                 if "{{year}}" in para.text:
                     para.text = para.text.replace("{{year}}", datetime.strftime(today, '%Y'))
+            for para in paras:
+                if "{{pass_creds}}" in para.text:
+                    para.text = para.text.replace("{{pass_creds}}", user[0][0])
+            for para in paras:
+                if "{{address}}" in para.text:
+                    para.text = para.text.replace("{{address}}", user[0][4])
 
             # Сохраняем изменения
             doc.save("output.docx")
@@ -206,49 +212,56 @@ def on_click(msg):
             match = re.match(r'^[0-9]{4} [0-9]{6}$', message.text)
             if match:
                 passp = message.text
-                bot.send_message(chat_id, 'Введите свой номер телефона в формате: +79999999999', reply_markup=keyboard)
+                bot.send_message(chat_id, 'Введите свои дату и место регистрации в формате: 01.01.2007 название учреждения', reply_markup=keyboard)
             else:
                 bot.send_message(chat_id, 'Ошибка, проверьте правильность введенных данных', reply_markup=keyboard)
                 return
-            @bot.message_handler(func=lambda message: re.match(r'^\+7[0-9]{10}$', message.text))
-            def phone(message):
+            @bot.message_handler(func=lambda message: re.match(r'^[0-9]{4} [0-9]{6}$', message.text))
+            def passport_creds(message):
+                match = re.search(r'^((3[0-1])|([1-2][0-9])|(0[1-9]))\.((1[0-2])|(0[1-9]))\.([0-9][0-9][0-9][0-9])\s', message.text)
                 if match:
-                    phone = message.text
-                    bot.send_message(chat_id, 'Введите свою фамилию имя отчество:', reply_markup=keyboard)
+                    passp_creds = message.text
+                    bot.send_message(chat_id, "Введите свой номер телефона в формате: +79999999999", reply_markup=keyboard)
                 else:
                     bot.send_message(chat_id, 'Ошибка, проверьте правильность введенных данных', reply_markup=keyboard)
                     return
 
-                @bot.message_handler(func=lambda message: re.match(r'^[^\W\d_]+\s[^\W\d_]+?(\s[^\W\d_]+)?$', message.text))
-                def name(message):
-                    
+                @bot.message_handler(func=lambda message: re.match(r'^\+7[0-9]{10}$', message.text))
+                def phone(message):
+                    match = re.match(r'^\+7[0-9]{10}$', message.text)
                     if match:
-                        name = message.text
-                        storage.create_user(
-                            role=0,
-                            phone=phone,
-                            full_name=name,
-                            passport=passp,
-                            tg_id=chat_id
-                        )
-                        bot.send_message(chat_id, 'Вы зарегистрированы', reply_markup=keyboard)
+                        phone = message.text
+                        bot.send_message(chat_id, 'Введите свой адресс:', reply_markup=keyboard)
                     else:
                         bot.send_message(chat_id, 'Ошибка, проверьте правильность введенных данных', reply_markup=keyboard)
                         return
-                bot.register_next_step_handler(message, name)
                     
-            @bot.message_handler(func=lambda message: not re.match(r'^\+7[0-9]{10}$', message.text))
-            def invalid_phone(message):
-                bot.send_message(chat_id, 'Ошибка, проверьте правильность введенных данных', reply_markup=keyboard)
+                    @bot.message_handler(func=lambda message: re.match(r'^[^\W\d_]+\s[^\W\d_]+?(\s[^\W\d_]+)?$', message.text))
+                    def address(message):
+                        address = message.text
+                        bot.send_message(chat_id, 'Введите свою фамилию имя отчество:', reply_markup=keyboard)
+                        @bot.message_handler(func=lambda message: re.match(r'^[^\W\d_]+\s[^\W\d_]+?(\s[^\W\d_]+)?$', message.text))
+                        def name(message):
+                            match = re.match(r'^[^\W\d_]+\s[^\W\d_]+?(\s[^\W\d_]+)?$', message.text)
+                            if match:
+                                name = message.text
+                                storage.create_user(
+                                    role=0,
+                                    address=address,
+                                    phone=phone,
+                                    full_name=name,
+                                    passport=passp,
+                                    login=passp_creds,
+                                    tg_id=chat_id
+                                )
+                                bot.send_message(chat_id, 'Вы зарегистрированы', reply_markup=keyboard)
+                            else:
+                                bot.send_message(chat_id, 'Ошибка, проверьте правильность введенных данных', reply_markup=keyboard)
+                                return
+                        bot.register_next_step_handler(message, name)
+                    bot.register_next_step_handler(message, address)
                 bot.register_next_step_handler(message, phone)
-
-            bot.register_next_step_handler(message, phone)
-
-        @bot.message_handler(func=lambda message: not re.match(r'^[0-9]{4} [0-9]{6}$', message.text))
-        def invalid_passport(message):
-            bot.send_message(chat_id, 'Ошибка, проверьте правильность введенных данных', reply_markup=keyboard)
-            bot.register_next_step_handler(message, passport)
-
+            bot.register_next_step_handler(message, passport_creds)
         bot.register_next_step_handler(msg, passport)
     if msg.text == "отзывы":
         bot.send_message(chat_id,

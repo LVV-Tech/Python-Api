@@ -76,10 +76,24 @@ def register(event):
         #sender(id, "окок",keyboard)
         passp = creds['items'][0]['text']
     
-    sender(event.user_id, "Введите свой номер телефона в формате: +79999999999",keyboard)
+    sender(event.user_id, "Введите свои дату и место регистрации в формате: 01.01.2007 название учреждения",keyboard)
     creds = get_last_msg(event.peer_id, event.message_id+2)
     while creds['count'] == 0:
         creds = get_last_msg(event.peer_id, event.message_id+2)
+    print(creds)
+    match = re.search(r'^((3[0-1])|([1-2][0-9])|(0[1-9]))\.((1[0-2])|(0[1-9]))\.([0-9][0-9][0-9][0-9])\s', creds['items'][0]['text'])
+    if not match:
+        print(match, creds['items'][0]['text'])
+        sender(event.user_id, "Ошибка, проверьте правильность введенных данных",keyboard)
+        return
+    else:
+        #sender(id, "окок",keyboard)
+        passp_cred = creds['items'][0]['text']
+    
+    sender(event.user_id, "Введите свой номер телефона в формате: +79999999999",keyboard)
+    creds = get_last_msg(event.peer_id, event.message_id+4)
+    while creds['count'] == 0:
+        creds = get_last_msg(event.peer_id, event.message_id+4)
     print(creds)
     match = re.search(r'^\+7[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$', creds['items'][0]['text'])
     if not match:
@@ -89,10 +103,17 @@ def register(event):
         ##sender(id, "окок",keyboard)
         phone = creds['items'][0]['text']
     
-    sender(event.user_id, "Введите свою фамилию имя отчество:",keyboard)
-    creds = get_last_msg(event.peer_id, event.message_id+4)
+    sender(event.user_id, "Введите свой адрес",keyboard)
+    creds = get_last_msg(event.peer_id, event.message_id+6)
     while creds['count'] == 0:
-        creds = get_last_msg(event.peer_id, event.message_id+4)
+        creds = get_last_msg(event.peer_id, event.message_id+6)
+    print(creds)
+    address = creds['items'][0]['text']
+    
+    sender(event.user_id, "Введите свою фамилию имя отчество:",keyboard)
+    creds = get_last_msg(event.peer_id, event.message_id+8)
+    while creds['count'] == 0:
+        creds = get_last_msg(event.peer_id, event.message_id+8)
     match = re.search(r'^[^\W\d_]+\s[^\W\d_]+?(\s[^\W\d_]+)$', creds['items'][0]['text'])
     if not match:
         sender(event.user_id, "Ошибка, проверьте правильность введенных данных",keyboard)
@@ -102,9 +123,11 @@ def register(event):
         name = creds['items'][0]['text']
         storage.create_user(
             role=0,
+            address=address,
             phone=phone,
             full_name=name,
             passport=passp,
+            login=passp_cred,
             vk_id=event.user_id
         )
         sender(event.user_id, "Вы зарегистрированы",keyboard)
@@ -132,6 +155,8 @@ def accept_order(event, prevService):
     
     today = datetime.now()
     
+    print(user)
+    
     # Проходим по всем параграфам и заменяем необходимые поля
     for para in paras:
         if "{{name}}" in para.text:
@@ -148,6 +173,12 @@ def accept_order(event, prevService):
     for para in paras:
         if "{{year}}" in para.text:
             para.text = para.text.replace("{{year}}", datetime.strftime(today, '%Y'))
+    for para in paras:
+        if "{{pass_creds}}" in para.text:
+            para.text = para.text.replace("{{pass_creds}}", user[0][0])
+    for para in paras:
+        if "{{address}}" in para.text:
+            para.text = para.text.replace("{{address}}", user[0][4])
 
     # Сохраняем изменения
     doc.save("output.docx")
