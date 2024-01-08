@@ -38,10 +38,16 @@ def sender(id: int, text: str, keyboard: VkKeyboard = None):
     if keyboard is not None:
         post["keyboard"] = keyboard.get_keyboard()
     vk_session.method("messages.send", post)
-
+#getHistory
 def get_last_msg(peer_id: int, msg_id: int):
     post = {"peer_id": peer_id, "conversation_message_ids": [msg_id+2]}
     return vk_session.method("messages.getByConversationMessageId", post)
+
+def get_ggg(peer_id: int, user_id: int, mid: int, msg: str):
+    post = {"peer_id": peer_id, "user_id":user_id, "start_message_id":mid, "offset":-2}
+    while vk_session.method("messages.getHistory", post)['items'][0]['text'] == msg:
+        continue
+    return vk_session.method("messages.getHistory", post)['items'][0]['text']
 
 def get_info(id: int):
     post = {"user_ids": [id]}
@@ -64,63 +70,53 @@ def register(event):
     keyboard = VkKeyboard()
     keyboard.add_button("меню",VkKeyboardColor.SECONDARY)
     sender(event.user_id, "Введите свои паспортные данные в формате: серия номер",keyboard)
-    creds = get_last_msg(event.peer_id, event.message_id)
-    while creds['count'] == 0:
-        creds = get_last_msg(event.peer_id, event.message_id)
+    creds = get_ggg(event.peer_id, event.user_id, event.message_id, "Введите свои паспортные данные в формате: серия номер")
     print(creds)
-    match = re.search(r'^[0-9][0-9][0-9][0-9] [0-9][0-9][0-9][0-9][0-9][0-9]$', creds['items'][0]['text'])
+    match = re.search(r'^[0-9][0-9][0-9][0-9] [0-9][0-9][0-9][0-9][0-9][0-9]$', creds)
     if not match:
         sender(event.user_id, "Ошибка, проверьте правильность введенных данных",keyboard)
         return
     else:
         #sender(id, "окок",keyboard)
-        passp = creds['items'][0]['text']
+        passp = creds
     
     sender(event.user_id, "Введите свои дату и место регистрации в формате: 01.01.2007 название учреждения",keyboard)
-    creds = get_last_msg(event.peer_id, event.message_id+2)
-    while creds['count'] == 0:
-        creds = get_last_msg(event.peer_id, event.message_id+2)
+    creds = get_ggg(event.peer_id, event.user_id, event.message_id+2, "Введите свои дату и место регистрации в формате: 01.01.2007 название учреждения")
     print(creds)
-    match = re.search(r'^((3[0-1])|([1-2][0-9])|(0[1-9]))\.((1[0-2])|(0[1-9]))\.([0-9][0-9][0-9][0-9])\s', creds['items'][0]['text'])
+    match = re.search(r'^((3[0-1])|([1-2][0-9])|(0[1-9]))\.((1[0-2])|(0[1-9]))\.([0-9][0-9][0-9][0-9])\s', creds)
     if not match:
-        print(match, creds['items'][0]['text'])
+        print(match, creds)
         sender(event.user_id, "Ошибка, проверьте правильность введенных данных",keyboard)
         return
     else:
         #sender(id, "окок",keyboard)
-        passp_cred = creds['items'][0]['text']
+        passp_cred = creds
     
     sender(event.user_id, "Введите свой номер телефона в формате: +79999999999",keyboard)
-    creds = get_last_msg(event.peer_id, event.message_id+4)
-    while creds['count'] == 0:
-        creds = get_last_msg(event.peer_id, event.message_id+4)
+    creds = get_ggg(event.peer_id, event.user_id, event.message_id+4,"Введите свой номер телефона в формате: +79999999999")
     print(creds)
-    match = re.search(r'^\+7[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$', creds['items'][0]['text'])
+    match = re.search(r'^\+7[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$', creds)
     if not match:
         sender(event.user_id, "Ошибка, проверьте правильность введенных данных",keyboard)
         return
     else:
         ##sender(id, "окок",keyboard)
-        phone = creds['items'][0]['text']
+        phone = creds
     
     sender(event.user_id, "Введите свой адрес",keyboard)
-    creds = get_last_msg(event.peer_id, event.message_id+6)
-    while creds['count'] == 0:
-        creds = get_last_msg(event.peer_id, event.message_id+6)
+    creds = get_ggg(event.peer_id, event.user_id, event.message_id+6, "Введите свой адрес")
     print(creds)
-    address = creds['items'][0]['text']
+    address = creds
     
     sender(event.user_id, "Введите свою фамилию имя отчество:",keyboard)
-    creds = get_last_msg(event.peer_id, event.message_id+8)
-    while creds['count'] == 0:
-        creds = get_last_msg(event.peer_id, event.message_id+8)
-    match = re.search(r'^[^\W\d_]+\s[^\W\d_]+?(\s[^\W\d_]+)$', creds['items'][0]['text'])
+    creds = get_ggg(event.peer_id, event.user_id, event.message_id+8, "Введите свою фамилию имя отчество:")
+    match = re.search(r'^[^\W\d_]+\s[^\W\d_]+?(\s[^\W\d_]+)$', creds)
     if not match:
         sender(event.user_id, "Ошибка, проверьте правильность введенных данных",keyboard)
         print(match, creds)
         return
     else:
-        name = creds['items'][0]['text']
+        name = creds
         storage.create_user(
             role=0,
             address=address,
@@ -240,6 +236,7 @@ def start_vk_bot():
     prevService = -100
     print("Server in work")
     for event in longpoll.listen():
+        
         if event.type == VkEventType.MESSAGE_NEW:
             
             if event.to_me:

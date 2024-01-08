@@ -56,28 +56,11 @@ def on_click(msg):
                         reply_markup=keyboard)
     if msg.text == "связаться с менеджером":
         keyboard = telebot.types.ReplyKeyboardMarkup()
-        btn1 = telebot.types.KeyboardButton("Творческий/Примеры работ, оценка, услуги")
-        keyboard.row(btn1)
-        btn2 = telebot.types.KeyboardButton("Юридический вопрос/Оформление документов")
-        keyboard.row(btn2)
-        btn3 = telebot.types.KeyboardButton("Маркетинг/Реклама, продвижение")
-        keyboard.row(btn3)
-        btn4 = telebot.types.KeyboardButton("Технический вопрос/Не работает сайт, бот")
-        keyboard.row(btn4)
-        btn5 = telebot.types.KeyboardButton("Меню")
-        keyboard.row(btn5)
+        keyboard.row(telebot.types.KeyboardButton("Меню"))
         bot.send_message(chat_id,
-                     'Мы прочитаем ваш вопрос и ответим на него как можно скорее. Для удобства выберите тему вопроса.',
+                     'Контакты менеджера: @ghostikgh',
                      reply_markup=keyboard)
-    if msg.text == "творческий/примеры работ, оценка, услуги" or \
-       msg.text == "юридический вопрос/оформление документов" or \
-       msg.text == "маркетинг/реклама, продвижение" or \
-       msg.text == "технический вопрос/не работает сайт, бот":
-        keyboard = telebot.types.InlineKeyboardMarkup()
-        keyboard.add(telebot.types.InlineKeyboardButton("Меню", callback_data='menu'))
-        bot.send_message(chat_id,
-                     'Чем я могу вам помочь? Опишите свою проблему следующим сообщением',
-                     reply_markup=keyboard)
+        
     if msg.text == "услуги" or msg.text == "⏪назад⏪":
         keyboard = telebot.types.ReplyKeyboardMarkup()
 
